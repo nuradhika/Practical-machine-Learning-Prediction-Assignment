@@ -1,0 +1,104 @@
+---
+title: "Practical Machine Learning Prediction Assignment"
+author: 
+date: "2023-07-26"
+output: html_document
+---
+
+## Overview 
+In this report I will analyze exercise data set with six young health participants were asked to perform one set of 10 repetitions of the Unilateral Dumbbell Biceps Curl in five different fashions exactly according to the specification. The classes are  (Class A), throwing the elbows to the front (Class B), lifting the dumbbell only halfway (Class C), lowering the dumbbell only halfway (Class D) and throwing the hips to the front (Class E). 
+
+The goal of this assessment is to predict the manner in which they did the exercise, class A corresponds to the specified execution of the exercise, while the other 4 classes correspond to common mistakes. 
+
+The data for this project come from this source: 
+http://web.archive.org/web/20161224072740/http:/groupware.les.inf.puc-rio.br/har
+
+
+```{r, echo=TRUE}
+library(ggplot2)
+library(lattice)
+library(caret)
+library(randomForest)
+library(rpart)
+set.seed(33833)
+
+```
+
+## Downloading Data 
+
+```{r, echo=TRUE}
+fileurl1 <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+fileurl2 <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+
+destfile1 <- "/Users/nuradhika/Documents/Coursera/MechineLearning/Week4/project/file1.csv"
+destfile2 <- "/Users/nuradhika/Documents/Coursera/MechineLearning/Week4/project/file2.csv"
+
+download.file(fileurl1, destfile1)
+download.file(fileurl2, destfile2)
+
+training <- read.csv("file1.csv", na.strings=c("NA","#DIV/0!", ""))
+testing <- read.csv("file2.csv", na.strings=c("NA","#DIV/0!", ""))
+
+#Check the dimensions of two data sets:
+dim(training)
+dim(testing)
+```
+
+## Data Exploration
+
+```{r, echo=TRUE}
+#remove variables with near zero 
+training <- training[,colSums(is.na(training))==0]
+testing <- testing[,colSums(is.na(testing))==0]
+
+dim(training)
+dim(testing)
+#remove the first 7 rows to remove the columns that are not predictors. 
+training <- training[,-c(1:7)]
+testing <- testing[,-c(1:7)]
+```
+I plot a histogram to check how classes are distributed. As the graph shows "classe A" is the most frequent while other 4 classes shows similar frequencies.  
+```{r, echo=FALSE}
+plot(as.factor(training$classe), col="lightblue", main="Distrribution of classe", xlab="Classe", ylab="Frequency")
+```
+
+## Cross Validation 
+In this section, I use cross validation to split the data set into training (70%) and test test (30%). I built the models on the training set and evaluate it using the test test. Then I will get average and estimated errors to check the accuracy of the models.
+```{r, echo=TRUE}
+data <- createDataPartition(y=training$classe, p = .70, list = FALSE)
+data_train <- training[data, ]
+data_test <- training[-data, ]
+```
+
+## Prediction Models
+I will use random forest models and decision making model to carry out predictive analyze the data set. Both of these models are types of classification model. I use these models because these models categorize the data based on historical data and can be use to describe the relationship within a given or new data set.   
+
+### 1. Random Forest Model 
+```{r, echo=TRUE}
+mod_rf <- randomForest(as.factor(classe) ~., data=data_train, method="class")
+pred_rf <- predict(mod_rf, data_test)
+confusionMatrix(as.factor(pred_rf), as.factor(data_test$classe))
+```
+
+
+### 2. Decision Tree
+```{r, echo=TRUE}
+mod_dt <- rpart(classe ~ ., data=data_train, method="class")
+prediction_dt <- predict(mod_dt, data_test, type = "class")
+confusionMatrix(as.factor(data_test$classe), as.factor(prediction_dt))
+```
+
+## Conclusions 
+According to the results, random forest models shows the accuracy of 0.9952 (95% confident interval (0.9931, 0.9968)) while decision tree moles shows accuracy of 0.7327 (95% confident interval (0.7212, 0.744)). Based on these accuracy values random forest model is selected. 
+Expected out-of-sample error is also called generalize error where once a model is built on a sample, this gives accuracy of applying the model to a new sample. In other words, it shows how well the machine learning algorithm fit to new data. Since the accuracy of the random forest model is 0.995, the expected out-of-error is 0.005 or 0.5%, which is very low. 
+
+## Test the modle to predict 20 differnt test cases.
+```{r, echo=TRUE}
+for (j in 1:20) {
+        p <- predict(mod_rf, testing[j,])
+        print(p)
+}
+```
+
+
+
